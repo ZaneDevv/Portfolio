@@ -6,5 +6,5 @@
 </script>
 
 <template>
-    <canvas id="bg"></canvas>
+    <canvas id="background"></canvas>
 </template>
