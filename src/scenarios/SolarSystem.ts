@@ -1,5 +1,11 @@
 import * as THREE from 'three';
+
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import { Scenario } from './Scenario.ts';
 
@@ -53,6 +59,7 @@ export class SolarSystem extends Scenario
     {
         super(objLoader, textureLoader);
 
+        this.setUpComposer();
         this.setUpLights();      
         this.setUpBackgroundMusic();  
         this.setUpOrbitsData();
@@ -71,16 +78,16 @@ export class SolarSystem extends Scenario
      */
     private applyColorToModel(model: THREE.Group<THREE.Object3DEventMap>, color: number)
     {
+        const properties = {
+            color: color,
+            metalness: 0.3,
+            roughness: 0.4
+        };
+
         model.traverse((child) => {
-                if (child instanceof THREE.Mesh)
-                {
-                    child.material = new THREE.MeshStandardMaterial({
-                        color: color,
-                        metalness: 0.3,
-                        roughness: 0.4
-                    });
-                }
-            });
+            if (child instanceof THREE.Mesh)
+                child.material = new THREE.MeshStandardMaterial(properties);
+        });
     }
 
     /**
@@ -128,16 +135,25 @@ export class SolarSystem extends Scenario
      * @param radius Orbit's radius
      * @param index Orbit's index
      * @param length Amount of orbits
-     * @param orbitPathMaterial Material to set to the orbits paths
      * @returns All the information about the orbit
      * @author Álvaro Fernández Barrero
      */
-    private async getObitsData(radius: number, index: number, length: number, orbitPathMaterial: THREE.MeshBasicMaterial) : Promise<OrbitsData | undefined>
+    private async getObitsData(radius: number, index: number, length: number) : Promise<OrbitsData | undefined>
     {
         if (!this.scene)
             return undefined;
 
-        let geometry = new THREE.RingGeometry(radius, radius - 0.01, radius * 5, 1, 0, 2 * Math.PI);
+        const color = new THREE.Color(
+            SolarSystem.orbitColors[index]
+        );
+        const glowingColor = color.clone().multiplyScalar(3);
+
+        const orbitPathMaterial = new THREE.MeshBasicMaterial({
+            color: glowingColor,
+            toneMapped: false
+        });
+
+        let geometry = new THREE.RingGeometry(radius, radius + 0.1, radius * 5, 1, 0, 2 * Math.PI);
         let mesh = new THREE.Mesh(geometry, orbitPathMaterial);
         let bodyMesh = await this.renderModel(index);
 
@@ -167,13 +183,8 @@ export class SolarSystem extends Scenario
      */
     private setUpOrbitsData() : void
     {
-        const orbitPathMaterial: THREE.MeshBasicMaterial = new THREE.MeshBasicMaterial({
-            color: 0xA0A0A0,
-            wireframe: true,
-        });
-
         let orbits: Array<number> = [10, 20, 30];
-        this.orbitsData = orbits.map((radius: number, index: number) => this.getObitsData(radius, index, orbits.length, orbitPathMaterial));
+        this.orbitsData = orbits.map((radius: number, index: number) => this.getObitsData(radius, index, orbits.length));
     }
 
     /**
@@ -243,6 +254,24 @@ export class SolarSystem extends Scenario
         this.playBackgroundMusic(audio);
         document.addEventListener("keydown", () => this.playBackgroundMusic(audio));
         document.addEventListener("pointerdown", () => this.playBackgroundMusic(audio));
+    }
+
+    /**
+     * Sets up the composer for gloom effects
+     * @author Álvaro Fernández Barrero
+     */
+    private setUpComposer() : void
+    {
+        if (!(this.renderer && this.scene && this.camera))
+        {
+            console.warn("Renderer, scene and camera are required");
+            return;
+        }
+
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(new RenderPass(this.scene, this.camera));
+        this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.1, 0.1, 0.1));
+        this.composer.addPass(new OutputPass());
     }
 
     /**
@@ -328,7 +357,9 @@ export class SolarSystem extends Scenario
             this.centralBodyTheta %= 2 * Math.PI;
 
             let quaternion = new THREE.Quaternion().setFromAxisAngle(this.centralBodyRotationAxis, Math.sin(this.centralBodyTheta) * Math.PI / 5);
-            quaternion.multiplyQuaternions(quaternion, this.centralBodyQuaternionOffset.conjugate());
+            quaternion.conjugate();
+            
+            quaternion.multiplyQuaternions(quaternion, this.centralBodyQuaternionOffset);
 
             this.centralBody.setRotationFromQuaternion(quaternion);
         }
@@ -348,7 +379,10 @@ export class SolarSystem extends Scenario
                 data.alpha += deltaTime;
                 data.alpha %= 2 * Math.PI;
 
-                body.position.set(data.radius * Math.cos(data.theta), data.radius * Math.sin(data.theta), Math.sin(data.alpha) * 0.1);
+                let cosineTheta = Math.cos(data.theta);
+
+                body.rotation.set(Math.PI / 2, -cosineTheta, 0);
+                body.position.set(data.radius * cosineTheta, data.radius * Math.sin(data.theta), Math.sin(data.theta * Math.E * 3) * 0.3);
             })
         });
     }

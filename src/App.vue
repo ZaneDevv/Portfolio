@@ -1,7 +1,7 @@
 <script setup lang="ts">
-    import Main from './components/main.vue'
+    import SolarSystem from './components/SolarSystem.vue'
 </script>
 
 <template>
-    <Main />
+    <SolarSystem />
 </template>

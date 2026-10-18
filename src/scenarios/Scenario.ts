@@ -1,5 +1,8 @@
 import * as THREE from 'three';
+
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 
 // ----------------------------------------------------------------------------------
 // CLASSES
@@ -10,6 +13,8 @@ export abstract class Scenario
     // ----------------------------------------------------------------------------------
     // ATTRIBUTES
     // ----------------------------------------------------------------------------------
+
+    protected composer?: EffectComposer;
 
     protected objLoader?: OBJLoader;
     protected textureLoader?: THREE.TextureLoader;
@@ -56,7 +61,7 @@ export abstract class Scenario
      * @param t Time passed since the simulation began
      * @author Álvaro Fernánde Barrero
      */
-    protected animate(t: number = 0)
+    protected animate(t: number = 0) : void
     {
         requestAnimationFrame((t) => this.animate(t));
         if (!(this.renderer && this.camera && this.scene))
@@ -67,26 +72,29 @@ export abstract class Scenario
 
         this.update(t, deltaTime);
 
-        this.renderer.render(this.scene, this.camera);
+        if (this.composer)
+            this.composer.render(deltaTime)
+        else
+            this.renderer.render(this.scene, this.camera);
     }
 
     /**
      * Sets up the scenario's renderer
      * @author Álvaro Fernández Barrero
      */
-    protected abstract setUpRenderer(): void;
+    protected abstract setUpRenderer() : void;
 
     /**
      * Sets up the scenario's camera
      * @author Álvaro Fernández Barrero
      */
-    protected abstract setUpCamera(): void;
+    protected abstract setUpCamera() : void;
 
     /**
      * Sets up the scenario's background
      * @author Álvaro Fernández Barrero
      */
-    protected abstract setUpBackground(): void
+    protected abstract setUpBackground() : void
 
     /**
      * Update method. This will run every frame
