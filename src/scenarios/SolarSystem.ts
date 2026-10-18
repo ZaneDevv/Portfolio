@@ -33,6 +33,11 @@ export class SolarSystem extends Scenario
     // ----------------------------------------------------------------------------------
 
     private orbitsData?: Promise<OrbitsData | undefined>[];
+    private centralBody: THREE.Group<THREE.Object3DEventMap> | undefined;
+
+    private centralBodyQuaternionOffset: THREE.Quaternion = new THREE.Quaternion(0, 1, 1, 0).normalize();
+    private centralBodyRotationAxis: THREE.Vector3 = new THREE.Vector3(1, 0, 2).normalize();
+    private centralBodyTheta: number = 0;
 
     private static orbitColors: Array<number> = [
         0xA78BFA,
@@ -48,8 +53,10 @@ export class SolarSystem extends Scenario
     {
         super(objLoader, textureLoader);
 
-        this.setUpLights();        
+        this.setUpLights();      
+        this.setUpBackgroundMusic();  
         this.setUpOrbitsData();
+        this.setUpCentralBody();
     }
 
     // ----------------------------------------------------------------------------------
@@ -59,16 +66,16 @@ export class SolarSystem extends Scenario
     /**
      * Applies the correspondging color to the given model
      * @param model Model to apply the color
-     * @param index Model's index
+     * @param color Hexadecimal color
      * @author Álvaro Fernández Barrero
      */
-    private applyColorToModel(model: THREE.Group<THREE.Object3DEventMap>, index: number)
+    private applyColorToModel(model: THREE.Group<THREE.Object3DEventMap>, color: number)
     {
         model.traverse((child) => {
                 if (child instanceof THREE.Mesh)
                 {
                     child.material = new THREE.MeshStandardMaterial({
-                        color: SolarSystem.orbitColors[index],
+                        color: color,
                         metalness: 0.3,
                         roughness: 0.4
                     });
@@ -83,7 +90,7 @@ export class SolarSystem extends Scenario
      * @returns A mesh of the object that corresponds to the orbit's index or undefined if that objest is not defined
      * @author Álvaro Fernández Barrero
      */
-    private async renderModel(index: number)
+    private async renderModel(index: number) : Promise<THREE.Group<THREE.Object3DEventMap> | undefined>
     {
         if (!this.objLoader)
             return;
@@ -111,7 +118,7 @@ export class SolarSystem extends Scenario
         }
 
         if (model)
-            this.applyColorToModel(model, index);
+            this.applyColorToModel(model, SolarSystem.orbitColors[index]);
 
         return model;
     }
@@ -203,7 +210,7 @@ export class SolarSystem extends Scenario
      * Sets up the scenario's background
      * @author Álvaro Fernández Barrero
      */
-    protected setUpBackground()
+    protected setUpBackground() : void
     {
         if (!(this.scene && this.textureLoader))
         {
@@ -216,6 +223,46 @@ export class SolarSystem extends Scenario
 
         this.scene.background = texture;
         this.scene.backgroundIntensity = 1;
+    }
+
+    /**
+     * Plays a background music
+     * @author Álvaro Fernández Barrero
+     */
+    private setUpBackgroundMusic() : void
+    {
+        const audio = document.getElementById("solar-system-background-music") as HTMLAudioElement | null;
+        if (!audio)
+        {
+            console.warn("Background music was not found");
+            return;
+        }
+
+        audio.volume = 0.5;
+
+        this.playBackgroundMusic(audio);
+        document.addEventListener("keydown", () => this.playBackgroundMusic(audio));
+        document.addEventListener("pointerdown", () => this.playBackgroundMusic(audio));
+    }
+
+    /**
+     * Plays the background music
+     * @param audio Background music's audio's HTML elemenet
+     * @author Álvaro Fernández Barrero
+     */
+    private async playBackgroundMusic(audio: HTMLAudioElement) : Promise<void>
+    {
+        try
+        {
+            await audio.play();
+
+            document.removeEventListener("pointerdown", () => this.playBackgroundMusic(audio));
+            document.removeEventListener("keydown", () => this.playBackgroundMusic(audio));
+        }
+        catch (error)
+        {
+            console.warn("Background music requires user interaction:", error);
+        }
     }
 
     /**
@@ -248,6 +295,26 @@ export class SolarSystem extends Scenario
     }
 
     /**
+     * Sets up a central body to the scenario
+     * @author Álvaro Fernández Barrero
+     */
+    private async setUpCentralBody() : Promise<void>
+    {
+        if (this.centralBody)
+            return;
+
+        this.centralBody = await this.objLoader?.loadAsync("/scenarios/solar_system/models/duck.obj");
+
+        if (!this.centralBody)
+            return;
+
+        this.centralBody.scale.multiplyScalar(0.5);
+
+        this.applyColorToModel(this.centralBody, 0xF2E333);
+        this.scene?.add(this.centralBody);
+    }
+
+    /**
      * Update method. This will run every frame
      * @param t Time passed since the simulation began
      * @param deltaTime Delta time
@@ -255,6 +322,17 @@ export class SolarSystem extends Scenario
      */
     protected update(_: number, deltaTime: number)
     {
+        if (this.centralBody)
+        {
+            this.centralBodyTheta += deltaTime * 0.2;
+            this.centralBodyTheta %= 2 * Math.PI;
+
+            let quaternion = new THREE.Quaternion().setFromAxisAngle(this.centralBodyRotationAxis, Math.sin(this.centralBodyTheta) * Math.PI / 5);
+            quaternion.multiplyQuaternions(quaternion, this.centralBodyQuaternionOffset.conjugate());
+
+            this.centralBody.setRotationFromQuaternion(quaternion);
+        }
+
         this.orbitsData?.forEach(promise => {
             promise.then(data => {
                 if (data === undefined)
