@@ -12,6 +12,7 @@ export abstract class Scenario
     // ----------------------------------------------------------------------------------
 
     protected objLoader?: OBJLoader;
+    protected textureLoader?: THREE.TextureLoader;
     
     protected scene?: THREE.Scene;
     protected camera?: THREE.Camera;
@@ -23,13 +24,16 @@ export abstract class Scenario
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------------
 
-    public constructor(objLoader: OBJLoader)
+    public constructor(objLoader: OBJLoader, textureLoader: THREE.TextureLoader)
     {
         this.objLoader = objLoader;
+        this.textureLoader = textureLoader;
+
         this.scene = new THREE.Scene();
 
         this.setUpRenderer();
         this.setUpCamera();
+        this.setUpBackground();
 
         this.animate();
     }
@@ -77,6 +81,12 @@ export abstract class Scenario
      * @author Álvaro Fernández Barrero
      */
     protected abstract setUpCamera(): void;
+
+    /**
+     * Sets up the scenario's background
+     * @author Álvaro Fernández Barrero
+     */
+    protected abstract setUpBackground(): void
 
     /**
      * Update method. This will run every frame

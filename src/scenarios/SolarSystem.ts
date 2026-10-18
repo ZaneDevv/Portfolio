@@ -16,6 +16,8 @@ interface OrbitsData {
     alpha: number,
     speed: number,
 
+    orbitAngle: number,
+
     orbitMesh: THREE.Mesh<THREE.RingGeometry, THREE.Material, THREE.Object3DEventMap>,
     bodyMesh: THREE.Group<THREE.Object3DEventMap> | undefined
 };
@@ -32,24 +34,47 @@ export class SolarSystem extends Scenario
 
     private orbitsData?: Promise<OrbitsData | undefined>[];
 
+    private static orbitColors: Array<number> = [
+        0xA78BFA,
+        0x22D3EE,
+        0xF5C77E
+    ];
+
     // ----------------------------------------------------------------------------------
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------------
 
-    public constructor(objLoader: OBJLoader)
+    public constructor(objLoader: OBJLoader, textureLoader: THREE.TextureLoader)
     {
-        super(objLoader);
-        
-        this.setUpRenderer();
-        this.setUpCamera();
-        this.setUpLights();
-        
+        super(objLoader, textureLoader);
+
+        this.setUpLights();        
         this.setUpOrbitsData();
     }
 
     // ----------------------------------------------------------------------------------
     // METHODS
     // ----------------------------------------------------------------------------------
+
+    /**
+     * Applies the correspondging color to the given model
+     * @param model Model to apply the color
+     * @param index Model's index
+     * @author Álvaro Fernández Barrero
+     */
+    private applyColorToModel(model: THREE.Group<THREE.Object3DEventMap>, index: number)
+    {
+        model.traverse((child) => {
+                if (child instanceof THREE.Mesh)
+                {
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: SolarSystem.orbitColors[index],
+                        metalness: 0.3,
+                        roughness: 0.4
+                    });
+                }
+            });
+    }
 
     /**
      * Renders the model for the given orbit
@@ -68,14 +93,14 @@ export class SolarSystem extends Scenario
         switch (index)
         {
         case 0:
-            model = await this.objLoader.loadAsync("/models/pi.obj");
+            model = await this.objLoader.loadAsync("/scenarios/solar_system/models/pi.obj");
             model.scale.multiplyScalar(5);
             model.rotateX(Math.PI / 2);
 
             break;
 
         case 1:
-            model = await this.objLoader.loadAsync("/models/programming.obj");
+            model = await this.objLoader.loadAsync("/scenarios/solar_system/models/programming.obj");
             model.scale.multiplyScalar(3);
             model.rotateX(Math.PI / 2);
 
@@ -84,6 +109,9 @@ export class SolarSystem extends Scenario
         default:
             console.warn(`No model found for #${index} orbit`);
         }
+
+        if (model)
+            this.applyColorToModel(model, index);
 
         return model;
     }
@@ -102,7 +130,7 @@ export class SolarSystem extends Scenario
         if (!this.scene)
             return undefined;
 
-        let geometry = new THREE.RingGeometry(radius, radius - 0.1, radius * 100, 1, 0, 2 * Math.PI);
+        let geometry = new THREE.RingGeometry(radius, radius - 0.01, radius * 5, 1, 0, 2 * Math.PI);
         let mesh = new THREE.Mesh(geometry, orbitPathMaterial);
         let bodyMesh = await this.renderModel(index);
 
@@ -118,6 +146,8 @@ export class SolarSystem extends Scenario
             thetaOffset: 2 * index * Math.PI / length,
             alpha: 0,
             speed: (0.1 + Math.random() * 0.1) * radius / 5,
+
+            orbitAngle: 175 / radius,
 
             orbitMesh: mesh,
             bodyMesh: bodyMesh
@@ -170,26 +200,51 @@ export class SolarSystem extends Scenario
     }
 
     /**
-     * Sets yo the scenario's lighting
+     * Sets up the scenario's background
      * @author Álvaro Fernández Barrero
      */
-    private setUpLights() : void
+    protected setUpBackground()
     {
-        if (!(this.scene && this.camera))
+        if (!(this.scene && this.textureLoader))
         {
-            console.warn("You've attempted to create the lighting befeore the scenario");
+            console.warn("Attempted to set up a background before anything existed at all");
             return;
         }
 
-        const upLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 1 );
-        this.scene.add(upLight);
+        const texture = this.textureLoader.load("/scenarios/solar_system/images/space.png");
+        texture.colorSpace = THREE.SRGBColorSpace;
 
-        const pointLightSun = new THREE.PointLight(0xFFFFFF, 1e3);
-        this.scene.add(pointLightSun);
+        this.scene.background = texture;
+        this.scene.backgroundIntensity = 1;
+    }
 
-        const cameraLight = new THREE.DirectionalLight(0xFFFFFF, 1e3)
-        cameraLight.position.set(this.camera.position.x, this.camera.position.y, this.camera.position.y);
-        this.scene.add(cameraLight);
+    /**
+     * Sets up atmospheric lighting for the space scenario.
+     * @author Álvaro Fernández Barrero
+     */
+    private setUpLights(): void
+    {
+        if (!this.scene || !this.camera)
+        {
+            console.warn("Cannot set up lights before the scene and camera");
+            return;
+        }
+
+        const ambientLight = new THREE.HemisphereLight(0x8B7AC8, 0x080616,1.5);
+        
+        const mainLight = new THREE.DirectionalLight(0xDDD6FF, 3.0);
+        mainLight.position.set(-15, -10, 25);
+        
+        const rimLight = new THREE.DirectionalLight(0x7C3AED, 2.0);    
+        rimLight.position.set(15, 10, -20);
+        
+        const fillLight = new THREE.PointLight(0x6366F1, 35, 80);
+        fillLight.position.set(0, 0, 15);
+        
+        this.scene.add(ambientLight);
+        this.scene.add(mainLight);
+        this.scene.add(rimLight);
+        this.scene.add(fillLight);
     }
 
     /**
@@ -211,7 +266,7 @@ export class SolarSystem extends Scenario
                     return;
         
                 data.phi += deltaTime * 10 * Math.PI / 180;
-                data.theta = data.thetaOffset + 10 * Math.sin(data.phi) * Math.PI / 180;
+                data.theta = data.thetaOffset + data.orbitAngle * Math.cos(data.phi) * Math.PI / 180;
                 data.alpha += deltaTime;
                 data.alpha %= 2 * Math.PI;
 
