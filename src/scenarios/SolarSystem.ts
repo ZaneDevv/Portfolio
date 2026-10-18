@@ -1,6 +1,7 @@
-
 import * as THREE from 'three';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+
+import { Scenario } from './Scenario.ts';
 
 // ----------------------------------------------------------------------------------
 // INTERFACES
@@ -20,35 +21,14 @@ interface OrbitsData {
 };
 
 // ----------------------------------------------------------------------------------
-// METHODS
+// CLASSES
 // ----------------------------------------------------------------------------------
 
-/**
- * Computes the delta time
- * @param lastT Previous time in milliseconds
- * @param t Current time in milliseconds
- * @returns Delta time in seconds
- * @author Álvaro Fernández Barrero
- */
-const computeDeltaTime = (lastT: number, t: number) => (t - lastT) / 1e3;
-
-// ----------------------------------------------------------------------------------
-// CLASS
-// ----------------------------------------------------------------------------------
-
-export class SolarSystem
+export class SolarSystem extends Scenario
 {
     // ----------------------------------------------------------------------------------
     // ATTRIBUTES
     // ----------------------------------------------------------------------------------
-
-    private objLoader?: OBJLoader;
-
-    private scene?: THREE.Scene;
-    private camera?: THREE.Camera;
-    private renderer?: THREE.WebGLRenderer;
-
-    private lastT: number = 0;
 
     private orbitsData?: Promise<OrbitsData | undefined>[];
 
@@ -56,42 +36,20 @@ export class SolarSystem
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------------
 
-    constructor(objLoader: OBJLoader)
+    public constructor(objLoader: OBJLoader)
     {
-        this.objLoader = objLoader;
-
-        this.scene = new THREE.Scene();
+        super(objLoader);
+        
         this.setUpRenderer();
         this.setUpCamera();
         this.setUpLights();
-
+        
         this.setUpOrbitsData();
-
-        this.animate();
     }
 
     // ----------------------------------------------------------------------------------
     // METHODS
     // ----------------------------------------------------------------------------------
-
-    /**
-     * Animates the simulation
-     * @param t Time passed since the simulation began
-     * @author Álvaro Fernánde Barrero
-     */
-    private animate(t: number = 0)
-    {
-        requestAnimationFrame((t) => this.animate(t));
-        if (!(this.renderer && this.camera && this.scene))
-            return;
-
-        const deltaTime = computeDeltaTime(this.lastT, t);
-        this.lastT = t;
-
-        this.update(t, deltaTime);
-
-        this.renderer.render(this.scene, this.camera);
-    }
 
     /**
      * Renders the model for the given orbit
@@ -185,7 +143,7 @@ export class SolarSystem
      * Sets up the scenario's camera
      * @author Álvaro Fernández Barrero
      */
-    private setUpCamera(): void
+    protected setUpCamera(): void
     {
         this.camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 1e3);
         this.camera.position.setZ(20);
@@ -197,7 +155,7 @@ export class SolarSystem
      * Sets up the scenario's renderer
      * @author Álvaro Fernández Barrero
      */
-    private setUpRenderer() : void
+    protected setUpRenderer() : void
     {
         const canvas = document.getElementById("background");
         if (!(canvas instanceof HTMLCanvasElement))
@@ -240,7 +198,7 @@ export class SolarSystem
      * @param deltaTime Delta time
      * @author Álvaro Fernández Barrero
      */
-    private update(_: number, deltaTime: number)
+    protected update(_: number, deltaTime: number)
     {
         this.orbitsData?.forEach(promise => {
             promise.then(data => {
