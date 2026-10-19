@@ -5,7 +5,7 @@ import App from './App.vue'
 import * as THREE from 'three';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 
-import { SolarSystem } from './scenarios/SolarSystem.ts'
+import { SolarSystem } from './scenarios/SolarSystem/SolarSystem.ts'
 
 // ----------------------------------------------------------------------------------
 // APP SETUP
