@@ -1,8 +1,9 @@
-import { TAU, HALF_PI, DEG2RAD } from '../../math/constants.ts';
+import { TAU, DEG2RAD } from '../../math/constants.ts';
 
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/Addons.js';
 
+import { BodyInOrbit } from './BodyInOrbit.ts';
 import type { OrbitData } from './OrbitData.ts';
 
 // ----------------------------------------------------------------------------------
@@ -17,6 +18,9 @@ export class Orbits
 
     private objLoader?: OBJLoader;
     private scene?: THREE.Scene;
+    private camera?: THREE.Camera;
+
+    private raycaster?: THREE.Raycaster;
 
     private orbitsData?: Promise<OrbitData | undefined>[];
 
@@ -30,76 +34,36 @@ export class Orbits
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------------
 
-    constructor(scene: THREE.Scene, objLoader: OBJLoader)
+    constructor(scene: THREE.Scene, camera: THREE.Camera, objLoader: OBJLoader)
     {
         this.scene = scene;
+        this.camera = camera;
         this.objLoader = objLoader;
 
+        this.raycaster = new THREE.Raycaster();
+
         this.setUpOrbitsData();
+
+        document.addEventListener("mousemove", this.onMouseMove.bind(this));
     }
 
     // ----------------------------------------------------------------------------------
     // METHODS
     // ----------------------------------------------------------------------------------
 
-    /**
-     * Applies the correspondging color to the given model
-     * @param model Model to apply the color
-     * @param color Hexadecimal color
-     * @author Álvaro Fernández Barrero
-     */
-    private applyColorToModel(model: THREE.Group<THREE.Object3DEventMap>, color: number)
+    private onMouseMove(event: {clientX: number, clientY: number}) : void
     {
-        const properties = {
-            color: color,
-            metalness: 0.3,
-            roughness: 0.4
-        };
-
-        model.traverse((child) => {
-            if (child instanceof THREE.Mesh)
-                child.material = new THREE.MeshStandardMaterial(properties);
-        });
-    }
-
-    /**
-     * Renders the model for the given orbit
-     * @param index Orbit's index
-     * @param objLoader OBJLoader instance
-     * @returns A mesh of the object that corresponds to the orbit's index or undefined if that objest is not defined
-     * @author Álvaro Fernández Barrero
-     */
-    private async renderModel(index: number) : Promise<THREE.Group<THREE.Object3DEventMap> | undefined>
-    {
-        if (!this.objLoader)
+        if (!(this.raycaster && this.camera && this.scene))
             return;
 
-        let model = undefined;
+        this.raycaster.setFromCamera(
+            new THREE.Vector2((event.clientX - window.innerWidth) / 2 - 1, (event.clientY - window.innerHeight) / 2 - 1),
+            this.camera
+        );
 
-        switch (index)
-        {
-        case 0:
-            model = await this.objLoader.loadAsync("/scenarios/solar_system/models/pi.obj");
-            model.scale.multiplyScalar(5);
-            model.rotateX(HALF_PI);
-
-            break;
-
-        case 1:
-            model = await this.objLoader.loadAsync("/scenarios/solar_system/models/programming.obj");
-            model.scale.multiplyScalar(3);
-            model.rotateX(HALF_PI);
-
-            break;
-
-        default:
-            console.warn(`No model found for #${index} orbit`);
-        }
-
-        if (model)
-            this.applyColorToModel(model, Orbits.orbitColors[index]);
-
-        return model;
+        const intersection = this.raycaster.intersectObjects(this.scene.children)[0];
+        if (!intersection)
+            return;
     }
 
     /**
@@ -129,7 +93,7 @@ export class Orbits
      * @returns Object with all the information of the orbit
      * @author Álvaro Fernández Barrero
      */
-    private getOrbitObject(radius: number, index: number, length: number, mesh: THREE.Mesh<THREE.RingGeometry, THREE.Material, THREE.Object3DEventMap>, bodyToOrbit:  THREE.Group<THREE.Object3DEventMap> | undefined) : OrbitData
+    private getOrbitObject(radius: number, index: number, length: number, mesh: THREE.Mesh<THREE.RingGeometry, THREE.Material, THREE.Object3DEventMap>, bodyToOrbit:  BodyInOrbit) : OrbitData
     {
         return {
             radius: radius,
@@ -157,17 +121,15 @@ export class Orbits
      */
     private async createOrbitData(radius: number, index: number, length: number) : Promise<OrbitData | undefined>
     {
-        if (!this.scene)
+        if (!(this.scene && this.objLoader && this.scene))
             return undefined;
+
+        let bodyToOrbit = await new BodyInOrbit(index, this.scene, this.objLoader);
 
         let geometry = new THREE.RingGeometry(radius, radius + 0.1, radius * 5, 1, 0, TAU);
         let mesh = new THREE.Mesh(geometry, this.getOrbitPathMaterial(Orbits.orbitColors[index]));
 
-        let bodyToOrbit = await this.renderModel(index);
-
         this.scene.add(mesh);
-        if (bodyToOrbit !== undefined)
-            this.scene.add(bodyToOrbit);
 
         return this.getOrbitObject(radius, index, length, mesh, bodyToOrbit);
     }
@@ -203,10 +165,7 @@ export class Orbits
             data.alpha += deltaTime;
             data.alpha %= TAU;
 
-            let cosineTheta = Math.cos(data.theta);
-
-            body.rotation.set(Math.PI / 2, -cosineTheta, 0);
-            body.position.set(data.radius * cosineTheta, data.radius * Math.sin(data.theta), Math.sin(data.theta * Math.E * 3) * 0.3);
+            body.setTransform(data.radius, data.theta);
         }));
     }
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BodyInOrbit } from './BodyInOrbit';
 
 // ----------------------------------------------------------------------------------
 // INTERFACES
@@ -16,5 +17,5 @@ export interface OrbitData {
     orbitAngle: number,
 
     orbitMesh: THREE.Mesh<THREE.RingGeometry, THREE.Material, THREE.Object3DEventMap>,
-    bodyToOrbit: THREE.Group<THREE.Object3DEventMap> | undefined
+    bodyToOrbit: BodyInOrbit
 };

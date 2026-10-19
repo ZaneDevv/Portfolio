@@ -36,10 +36,10 @@ export class SolarSystem extends Scenario
         this.setUpLights();      
         this.setUpBackgroundMusic();  
 
-        if (this.scene && objLoader)
+        if (this.scene && this.camera && objLoader)
         {
             this.centralBody = new CentralBody(this.scene, objLoader);
-            this.orbits = new Orbits(this.scene, objLoader);   
+            this.orbits = new Orbits(this.scene, this.camera, objLoader);   
         }
     }
 
