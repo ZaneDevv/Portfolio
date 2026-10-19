@@ -1,10 +1,10 @@
-import { TAU, DEG2RAD } from '../../math/constants.ts';
+import { TAU } from '../../math/constants.ts';
 
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/Addons.js';
 
 import { BodyInOrbit } from './BodyInOrbit.ts';
-import type { OrbitData } from './OrbitData.ts';
+import { ORBIT_COLORS, ORBIT_RADIUS } from './OrbitsInformation.ts';
 
 // ----------------------------------------------------------------------------------
 // CLASSES
@@ -22,13 +22,7 @@ export class Orbits
 
     private raycaster?: THREE.Raycaster;
 
-    private orbitsData?: Promise<OrbitData | undefined>[];
-
-    private static orbitColors: Array<number> = [
-        0xA78BFA,
-        0x22D3EE,
-        0xF5C77E
-    ];
+    private bodies: Array<BodyInOrbit> = [];
 
     // ----------------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -42,7 +36,8 @@ export class Orbits
 
         this.raycaster = new THREE.Raycaster();
 
-        this.setUpOrbitsData();
+        for (let i: number = 0; i < ORBIT_RADIUS.length; i++)
+            this.createOrbit(i);
 
         document.addEventListener("mousemove", this.onMouseMove.bind(this));
     }
@@ -84,64 +79,23 @@ export class Orbits
     }
 
     /**
-     * Gets an object containing all the orbit's information
-     * @param radius Orbit's radius
-     * @param index Orbit's index
-     * @param length Amount of orbits
-     * @param mesh Orbit's mesh
-     * @param bodyToOrbit Body to orbit
-     * @returns Object with all the information of the orbit
-     * @author Álvaro Fernández Barrero
-     */
-    private getOrbitObject(radius: number, index: number, length: number, mesh: THREE.Mesh<THREE.RingGeometry, THREE.Material, THREE.Object3DEventMap>, bodyToOrbit:  BodyInOrbit) : OrbitData
-    {
-        return {
-            radius: radius,
-
-            phi: 0,
-            theta: index * TAU / length,
-            thetaOffset: index * TAU / length,
-            alpha: 0,
-            speed: (0.1 + Math.random() * 0.1) * radius / 5,
-
-            orbitAngle: 175 / radius,
-
-            orbitMesh: mesh,
-            bodyToOrbit: bodyToOrbit
-        };
-    }
-
-    /**
      * Gets the orbits full information
-     * @param radius Orbit's radius
      * @param index Orbit's index
-     * @param length Amount of orbits
      * @returns All the information about the orbit
      * @author Álvaro Fernández Barrero
      */
-    private async createOrbitData(radius: number, index: number, length: number) : Promise<OrbitData | undefined>
+    private createOrbit(index: number) 
     {
         if (!(this.scene && this.objLoader && this.scene))
             return undefined;
 
-        let bodyToOrbit = await new BodyInOrbit(index, this.scene, this.objLoader);
+        let radius: number = ORBIT_RADIUS[index];
 
         let geometry = new THREE.RingGeometry(radius, radius + 0.1, radius * 5, 1, 0, TAU);
-        let mesh = new THREE.Mesh(geometry, this.getOrbitPathMaterial(Orbits.orbitColors[index]));
+        let mesh = new THREE.Mesh(geometry, this.getOrbitPathMaterial(ORBIT_COLORS[index]));
 
         this.scene.add(mesh);
-
-        return this.getOrbitObject(radius, index, length, mesh, bodyToOrbit);
-    }
-
-    /**
-     * Sets up all the orbits
-     * @author Álvaro Fernández Barrero
-     */
-    private setUpOrbitsData() : void
-    {
-        let orbits: Array<number> = [10, 20, 30];
-        this.orbitsData = orbits.map((radius: number, index: number) => this.createOrbitData(radius, index, orbits.length));
+        this.bodies.push(new BodyInOrbit(index, this.scene, this.objLoader));
     }
 
     /**
@@ -151,21 +105,7 @@ export class Orbits
      */
     public update(deltaTime: number)
     {
-        this.orbitsData?.forEach(promise => promise.then(data => {
-            if (data === undefined)
-                return;
-
-            let body = data.bodyToOrbit;
-        
-            if (body === undefined)
-                return;
-    
-            data.phi += deltaTime * 10 * DEG2RAD;
-            data.theta = data.thetaOffset + data.orbitAngle * Math.cos(data.phi) * DEG2RAD;
-            data.alpha += deltaTime;
-            data.alpha %= TAU;
-
-            body.setTransform(data.radius, data.theta);
-        }));
+        console.log(this.bodies)
+        this.bodies.forEach(body => body.updateTransform(deltaTime));
     }
 }

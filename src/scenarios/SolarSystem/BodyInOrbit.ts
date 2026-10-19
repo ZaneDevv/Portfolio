@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import type { OBJLoader } from 'three/examples/jsm/Addons.js';
 
-import { HALF_PI } from '../../math/constants.ts';
+import { ORBIT_COLORS, ORBIT_RADIUS } from './OrbitsInformation.ts';
+
+import { HALF_PI, TAU, DEG2RAD } from '../../math/constants.ts';
 
 // ----------------------------------------------------------------------------------
 // CLASSES
@@ -9,16 +11,6 @@ import { HALF_PI } from '../../math/constants.ts';
 
 export class BodyInOrbit
 {
-    // ----------------------------------------------------------------------------------
-    // STATICS
-    // ----------------------------------------------------------------------------------
-
-    private static orbitColors: Array<number> = [
-        0xA78BFA,
-        0x22D3EE,
-        0xF5C77E
-    ];
-
     // ----------------------------------------------------------------------------------
     // ATTRIBUTES
     // ----------------------------------------------------------------------------------
@@ -30,13 +22,31 @@ export class BodyInOrbit
 
     private model?: THREE.Group<THREE.Object3DEventMap> = undefined;
 
+    private orbitAngle: number = 0;
+    private radius: number = 0;
+    private phi: number = 0;
+    private alpha: number = 0;
+    private theta: number = 0;
+    private thetaOffset: number = 0;
+    private speed: number = 0;
+
     // ----------------------------------------------------------------------------------
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------------
 
     constructor(index: number, scene: THREE.Scene, objLoader: OBJLoader)
     {
+        let length = ORBIT_RADIUS.length;
+
         this.index = index;
+
+        this.radius = ORBIT_RADIUS[index],
+        this.phi = 0,
+        this.theta = index * TAU / length,
+        this.thetaOffset = index * TAU / length,
+        this.alpha = 0,
+        this.speed = 10,
+        this.orbitAngle = 175 / this.radius,
 
         this.scene = scene;
         this.objLoader = objLoader;
@@ -104,26 +114,30 @@ export class BodyInOrbit
         body.scale.multiplyScalar(scale);
         body.rotateX(HALF_PI);
 
-        this.applyColorToModel(body, BodyInOrbit.orbitColors[this.index]);
+        this.applyColorToModel(body, ORBIT_COLORS[this.index]);
 
         this.model = body;
         this.scene.add(body);
     }
 
     /**
-     * Sets the transform of the model according to the given polar coordinates
-     * @param radius Radius
-     * @param angle Angle
+     * Updates the transform of the model according to the given polar coordinates
+     * @param {Number} deltaTime Time passed since last frame
      * @author Álvaro Fernández Barrero 
      */
-    public setTransform(radius: number, angle: number) : void
+    public updateTransform(deltaTime: number) : void
     {
         if (!this.model)
             return;
 
-        let cosine = Math.cos(angle);
+        this.phi += deltaTime * this.speed * DEG2RAD;
+        this.theta = this.thetaOffset + this.orbitAngle * Math.cos(this.phi) * DEG2RAD;
+        this.alpha += deltaTime;
+        this.alpha %= TAU;
 
-        this.model.rotation.set(Math.PI / 2, -cosine, 0);
-        this.model.position.set(radius * cosine, radius * Math.sin(angle), Math.sin(angle * Math.E * 3) * 0.3);
+        let cosineTheta = Math.cos(this.theta);
+
+        this.model.rotation.set(HALF_PI, -cosineTheta, 0);  
+        this.model.position.set(this.radius * cosineTheta, this.radius * Math.sin(this.theta), Math.sin(this.theta * Math.E * 3) * 0.3);
     }
 }
