@@ -4,6 +4,7 @@ import type { OBJLoader } from 'three/examples/jsm/Addons.js';
 import { ORBIT_COLORS, ORBIT_RADIUS } from './OrbitsInformation.ts';
 
 import { HALF_PI, TAU, DEG2RAD } from '../../math/constants.ts';
+import { lerp } from '../../math/interpolation.ts';
 
 // ----------------------------------------------------------------------------------
 // CLASSES
@@ -24,12 +25,15 @@ export class BodyInOrbit
     private index?: number = undefined;
 
     private objLoader?: OBJLoader = undefined;
+    private camera?: THREE.Camera = undefined;
     private scene?: THREE.Scene = undefined;
 
     private model?: THREE.Group<THREE.Object3DEventMap> = undefined;
     private hitboxModel?: THREE.Object3D = undefined;
 
     private isSelected: boolean = false;
+
+    private deltaTime: number = 0;
 
     private orbitAngle: number = 0;
     private radius: number = 0;
@@ -43,7 +47,7 @@ export class BodyInOrbit
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------------
 
-    constructor(index: number, scene: THREE.Scene, objLoader: OBJLoader)
+    constructor(index: number, scene: THREE.Scene, camera: THREE.Camera, objLoader: OBJLoader)
     {
         let length = ORBIT_RADIUS.length;
 
@@ -58,6 +62,7 @@ export class BodyInOrbit
         this.orbitAngle = 175 / this.radius,
 
         this.scene = scene;
+        this.camera = camera;
         this.objLoader = objLoader;
         
         this.renderModel();
@@ -153,6 +158,8 @@ export class BodyInOrbit
      */
     public updateTransform(deltaTime: number) : void
     {
+        this.deltaTime = deltaTime;
+
         if (!this.model || this.isSelected)
             return;
 
@@ -169,9 +176,48 @@ export class BodyInOrbit
         this.hitboxModel?.position.set(this.model.position.x, this.model.position.y, this.model.position.z);
     }
 
-    public select()
+    public async select()
     {
         this.isSelected = true;
+
+        if (!(this.camera && this.model))
+            return;
+
+        const forward: THREE.Vector3 = this.camera.position.clone();
+        forward.sub(this.model.position.clone());
+        forward.normalize();
+
+        const right: THREE.Vector3 = forward.clone();
+        right.cross(new THREE.Vector3(0, 0, -1));
+        right.normalize();
+        
+        const up: THREE.Vector3 = forward.clone();
+        up.cross(right);
+        up.normalize();
+
+        const originQuaternion = this.model.quaternion;
+        const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(
+            new THREE.Matrix4(
+                right.x, up.x, forward.x, 0,
+                right.y, up.y, forward.y, 0,
+                right.z, up.z, forward.z, 0,
+                0, 0, 0, 1
+            )
+        );
+
+        let t = 0;
+
+        while (t <= 1 && this.isSelected)
+        {
+            let alpha = t * t * t;
+
+            const quaternionRotation = originQuaternion.clone();
+            quaternionRotation.slerp(targetQuaternion, alpha);
+
+            this.model.setRotationFromQuaternion(quaternionRotation);
+
+            await new Promise(resolve => setTimeout(resolve, this.deltaTime)).then(() => t += this.deltaTime);
+        }
     }
 
     public unselect()

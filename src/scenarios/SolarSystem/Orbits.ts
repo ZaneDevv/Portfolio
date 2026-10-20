@@ -153,7 +153,7 @@ export class Orbits
      */
     private createOrbit(index: number) 
     {
-        if (!(this.scene && this.objLoader && this.scene && this.bodiesInRaycastWhiteList))
+        if (!(this.scene && this.camera && this.objLoader && this.scene && this.bodiesInRaycastWhiteList))
             return;
 
         let radius: number = ORBIT_RADIUS[index];
@@ -161,7 +161,7 @@ export class Orbits
         let geometry = new THREE.RingGeometry(radius, radius + 0.1, radius * 5, 1, 0, TAU);
         let mesh = new THREE.Mesh(geometry, this.getOrbitPathMaterial(ORBIT_COLORS[index]));
 
-        const bodyInOrbit = new BodyInOrbit(index, this.scene, this.objLoader)
+        const bodyInOrbit = new BodyInOrbit(index, this.scene, this.camera, this.objLoader)
 
         this.scene.add(mesh);
 
