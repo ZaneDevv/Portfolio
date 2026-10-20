@@ -10,6 +10,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Scenario } from '../Scenario.ts';
 import { Orbits } from './Orbits.ts'
 import { CentralBody } from './CentralBody.ts';
+import { CelestialObject } from './CelestialObjects.ts';
 
 // ----------------------------------------------------------------------------------
 // CLASSES
@@ -23,6 +24,7 @@ export class SolarSystem extends Scenario
 
     private centralBody?: CentralBody;
     private orbits?: Orbits;
+    private celestialObject?: CelestialObject;
 
     // ----------------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -39,7 +41,8 @@ export class SolarSystem extends Scenario
         if (this.scene && this.camera && objLoader)
         {
             this.centralBody = new CentralBody(this.scene, objLoader);
-            this.orbits = new Orbits(this.scene, this.camera, objLoader);   
+            this.orbits = new Orbits(this.scene, this.camera, objLoader);  
+            this.celestialObject = new CelestialObject(this.scene); 
         }
     }
 
@@ -193,5 +196,6 @@ export class SolarSystem extends Scenario
     {
         this.centralBody?.update(deltaTime);
         this.orbits?.update(deltaTime);
+        this.celestialObject?.update(deltaTime);
     }
 }

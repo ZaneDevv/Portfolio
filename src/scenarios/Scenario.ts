@@ -19,7 +19,7 @@ export abstract class Scenario
     protected textureLoader?: THREE.TextureLoader;
     
     protected scene?: THREE.Scene;
-    protected camera?: THREE.Camera;
+    protected camera?: THREE.PerspectiveCamera;
     protected renderer?: THREE.WebGLRenderer;
 
     protected lastT: number = 0;
@@ -38,6 +38,8 @@ export abstract class Scenario
         this.setUpRenderer();
         this.setUpCamera();
         this.setUpBackground();
+
+        document.addEventListener("mousemove", () => { this.updateDimensions(); });
 
         this.animate();
     }
@@ -58,7 +60,7 @@ export abstract class Scenario
     /**
      * Animates the simulation
      * @param t Time passed since the simulation began
-     * @author Álvaro Fernánde Barrero
+     * @author Álvaro Fernández Barrero
      */
     protected animate(t: number = 0) : void
     {
@@ -75,6 +77,15 @@ export abstract class Scenario
             this.composer.render(deltaTime)
         else
             this.renderer.render(this.scene, this.camera);
+    }
+
+    private updateDimensions()
+    {
+        if (this.camera)
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+
+        if (this.renderer)
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
     /**

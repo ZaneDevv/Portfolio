@@ -105,7 +105,6 @@ export class Orbits
      */
     public update(deltaTime: number)
     {
-        console.log(this.bodies)
         this.bodies.forEach(body => body.updateTransform(deltaTime));
     }
 }
