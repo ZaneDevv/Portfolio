@@ -12,6 +12,12 @@ import { HALF_PI, TAU, DEG2RAD } from '../../math/constants.ts';
 export class BodyInOrbit
 {
     // ----------------------------------------------------------------------------------
+    // STATICS
+    // ----------------------------------------------------------------------------------
+
+    private static HITBOX_SCALE = 7;
+
+    // ----------------------------------------------------------------------------------
     // ATTRIBUTES
     // ----------------------------------------------------------------------------------
 
@@ -21,6 +27,9 @@ export class BodyInOrbit
     private scene?: THREE.Scene = undefined;
 
     private model?: THREE.Group<THREE.Object3DEventMap> = undefined;
+    private hitboxModel?: THREE.Object3D = undefined;
+
+    private isSelected: boolean = false;
 
     private orbitAngle: number = 0;
     private radius: number = 0;
@@ -54,6 +63,8 @@ export class BodyInOrbit
         this.renderModel();
         if (this.model)
             this.scene.add(this.model);
+
+        this.setUpHitbox();
     }
 
     // ----------------------------------------------------------------------------------
@@ -121,13 +132,28 @@ export class BodyInOrbit
     }
 
     /**
+     * Sets up the mesh's hitbox
+     * @author Álvaro Fernández Barrero
+     */
+    private setUpHitbox()
+    {
+        const geometry = new THREE.BoxGeometry(BodyInOrbit.HITBOX_SCALE, BodyInOrbit.HITBOX_SCALE, BodyInOrbit.HITBOX_SCALE);
+        const material = new THREE.MeshBasicMaterial({
+            visible: false
+        });
+
+        this.hitboxModel = new THREE.Mesh(geometry, material);
+        this.scene?.add(this.hitboxModel);
+    }
+
+    /**
      * Updates the transform of the model according to the given polar coordinates
      * @param {Number} deltaTime Time passed since last frame
      * @author Álvaro Fernández Barrero 
      */
     public updateTransform(deltaTime: number) : void
     {
-        if (!this.model)
+        if (!this.model || this.isSelected)
             return;
 
         this.phi += deltaTime * this.speed * DEG2RAD;
@@ -139,5 +165,26 @@ export class BodyInOrbit
 
         this.model.rotation.set(HALF_PI, -cosineTheta, 0);  
         this.model.position.set(this.radius * cosineTheta, this.radius * Math.sin(this.theta), Math.sin(this.theta * Math.E * 3) * 0.3);
+
+        this.hitboxModel?.position.set(this.model.position.x, this.model.position.y, this.model.position.z);
+    }
+
+    public select()
+    {
+        this.isSelected = true;
+    }
+
+    public unselect()
+    {
+        this.isSelected = false;
+    }
+
+    // ----------------------------------------------------------------------------------
+    // GETTERS & SETTERS
+    // ----------------------------------------------------------------------------------
+
+    public get hitboxMesh()
+    {
+        return this.hitboxModel;
     }
 }

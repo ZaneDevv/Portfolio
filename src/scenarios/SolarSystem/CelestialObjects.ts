@@ -12,11 +12,11 @@ export class CelestialObject
     // STATICS
     // ----------------------------------------------------------------------------------
 
-    private static MINIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE: number = 2;
+    private static MINIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE: number = 0.5;
     private static MAXIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE: number = 5;
 
     private static MINIMUM_LIFETIME: number = 6;
-    private static MAXIMUM_LIFETIME: number = 15;
+    private static MAXIMUM_LIFETIME: number = 30;
 
     private static MINIMUM_SCALE: number = 0.2;
     private static MAXIMUM_SCALE: number = 0.6;
@@ -65,7 +65,7 @@ export class CelestialObject
 
         const edges = new THREE.OctahedronGeometry(10, 1);
         const materialEdges = new THREE.MeshBasicMaterial({
-            color: 0xFFC44A,
+            color: 0xB08530,
             wireframe: true,
             wireframeLinewidth: 3,
         })
@@ -84,10 +84,19 @@ export class CelestialObject
      */
     private async launch()
     {
-        if (!this.body)
+        if (!(this.body && this.scene))
             return;
 
+        const meteorite = this.body.clone();
+        this.scene.add(meteorite);
+
         const rotationAxis = new THREE.Vector3().randomDirection();
+
+        const scale = new THREE.Vector3(
+            random(CelestialObject.MINIMUM_SCALE, CelestialObject.MAXIMUM_SCALE),
+            random(CelestialObject.MINIMUM_SCALE, CelestialObject.MAXIMUM_SCALE),
+            random(CelestialObject.MINIMUM_SCALE, CelestialObject.MAXIMUM_SCALE)
+        );
 
         const direction = new THREE.Vector3().randomDirection();
         const startingPosition = new THREE.Vector3(Math.random() * 80 - 40, 60, Math.random() * 80 - 40);
@@ -96,29 +105,33 @@ export class CelestialObject
 
         let t = 0;
 
-        this.body.position.set(startingPosition.x, startingPosition.y, startingPosition.z);
-        this.body.scale.set(
-            random(CelestialObject.MINIMUM_SCALE, CelestialObject.MAXIMUM_SCALE),
-            random(CelestialObject.MINIMUM_SCALE, CelestialObject.MAXIMUM_SCALE),
-            random(CelestialObject.MINIMUM_SCALE, CelestialObject.MAXIMUM_SCALE)
-        );
+        meteorite.position.set(startingPosition.x, startingPosition.y, startingPosition.z);
+        meteorite.scale.set(scale.x, scale.y, scale.z);
 
         while (t < lifetime)
         {
+            let alpha = t / lifetime;
+
             let rotationQuaternion = new THREE.Quaternion();
             rotationQuaternion.setFromAxisAngle(rotationAxis, this.deltaTime);
 
             let displacement = direction.clone();
-            displacement.multiplyScalar(this.deltaTime * 10);
+            displacement.multiplyScalar(this.deltaTime * 10 / (t + 1));
 
-            let newPosition = this.body?.position.clone();
-            newPosition.add(displacement)
+            let newPosition = meteorite.position.clone();
+            newPosition.add(displacement);
+
+            let newScale = scale.clone();
+            newScale.multiplyScalar(1 - alpha);
             
-            this.body.position.set(newPosition.x, newPosition.y, newPosition.z);
-            this.body.setRotationFromQuaternion(this.body?.quaternion.multiply(rotationQuaternion));
+            meteorite.position.set(newPosition.x, newPosition.y, newPosition.z);
+            meteorite.scale.set(newScale.x, newScale.y, newScale.z)
+            meteorite.setRotationFromQuaternion(meteorite.quaternion.multiply(rotationQuaternion));
 
             await new Promise(resolve => setTimeout(resolve, this.deltaTime)).then(() => t += this.deltaTime);
         }
+
+        meteorite.parent?.remove(meteorite);
     }
 
     /**

@@ -39,7 +39,7 @@ export abstract class Scenario
         this.setUpCamera();
         this.setUpBackground();
 
-        document.addEventListener("mousemove", () => { this.updateDimensions(); });
+        window.addEventListener("resize", () => { this.updateDimensions(); });
 
         this.animate();
     }

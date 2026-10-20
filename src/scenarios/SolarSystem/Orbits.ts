@@ -23,6 +23,9 @@ export class Orbits
     private raycaster?: THREE.Raycaster;
 
     private bodies: Array<BodyInOrbit> = [];
+    private bodiesInRaycastWhiteList: Array<THREE.Object3D> = [];
+    private mapHotboxBody: Map<THREE.Object3D, BodyInOrbit> = new Map();
+    private selectedBody?: BodyInOrbit = undefined;
 
     // ----------------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -46,22 +49,83 @@ export class Orbits
     // METHODS
     // ----------------------------------------------------------------------------------
 
+    /**
+     * Method to run when the client's mouse moves
+     * @param event Mouse's data
+     * @author Álvaro Fernández Barrero
+     */
     private onMouseMove(event: {clientX: number, clientY: number}) : void
+    {
+        if (!(this.raycaster && this.camera && this.scene))
+            return;
+
+        const intersection = this.getMouseRaycasterIntersection(event.clientX, event.clientY);
+
+        if (!intersection)
+        {
+            this.unselectSelectedBody();
+            return;
+        }
+
+        const bodyInOrbit = this.mapHotboxBody.get(intersection.object as THREE.Object3D);
+        if (!bodyInOrbit)
+        {
+            this.unselectSelectedBody();
+            return;
+        }
+
+        this.selectBody(bodyInOrbit);
+    }
+
+    /**
+     * Unselected the currently selected body
+     * @author Álvaro Fernández Barrero
+     */
+    private unselectSelectedBody() : void
+    {
+        if (this.selectedBody)
+            this.selectedBody.unselect();
+        this.selectedBody = undefined;
+    }
+
+    /**
+     * Selects the given body
+     * @param BodyInOrbit Body to select
+     * @author Álvaro Fernández Barrero
+     */
+    private selectBody(bodyInOrbit: BodyInOrbit) : void
+    {
+        if (this.selectedBody !== bodyInOrbit)
+            return;
+
+        bodyInOrbit.select();
+
+        if (this.selectedBody)
+            this.selectedBody.unselect();
+        this.selectedBody = bodyInOrbit;
+    }
+
+    /**
+     * Computes and gets the intersection of them mouse with 3D bodies in orbits
+     * @param mouseX Mouse's x coordinate
+     * @param mouseY Mouse's y coordinate
+     * @returns The intersection between the 2D mouse coordinate with a 3D object on screen
+     * @author Álvaro Fernández Barrero
+     */
+    private getMouseRaycasterIntersection(mouseX: number, mouseY: number) : THREE.Intersection<THREE.Object3D<THREE.Object3DEventMap>> | undefined
     {
         if (!(this.raycaster && this.camera && this.scene))
             return;
 
         this.raycaster.setFromCamera(
             new THREE.Vector2(
-                (event.clientX - window.innerWidth) / 2 - 1,
-                (event.clientY - window.innerHeight) / 2 - 1
+                2 * (mouseX / window.innerWidth) - 1,
+                1 - (mouseY / window.innerHeight) * 2
             ),
             this.camera
         );
 
-        const intersection = this.raycaster.intersectObjects(this.scene.children)[0];
-        if (!intersection)
-            return;
+        return this.raycaster.intersectObjects(this.bodiesInRaycastWhiteList)[0];
     }
 
     /**
@@ -89,7 +153,7 @@ export class Orbits
      */
     private createOrbit(index: number) 
     {
-        if (!(this.scene && this.objLoader && this.scene))
+        if (!(this.scene && this.objLoader && this.scene && this.bodiesInRaycastWhiteList))
             return;
 
         let radius: number = ORBIT_RADIUS[index];
@@ -97,8 +161,14 @@ export class Orbits
         let geometry = new THREE.RingGeometry(radius, radius + 0.1, radius * 5, 1, 0, TAU);
         let mesh = new THREE.Mesh(geometry, this.getOrbitPathMaterial(ORBIT_COLORS[index]));
 
+        const bodyInOrbit = new BodyInOrbit(index, this.scene, this.objLoader)
+
         this.scene.add(mesh);
-        this.bodies.push(new BodyInOrbit(index, this.scene, this.objLoader));
+
+        this.bodies.push(bodyInOrbit);
+        this.bodiesInRaycastWhiteList.push(bodyInOrbit.hitboxMesh as THREE.Object3D);
+
+        this.mapHotboxBody.set(bodyInOrbit.hitboxMesh as THREE.Object3D, bodyInOrbit);
     }
 
     /**
