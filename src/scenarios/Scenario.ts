@@ -79,13 +79,16 @@ export abstract class Scenario
             this.renderer.render(this.scene, this.camera);
     }
 
-    private updateDimensions()
+    /**
+     * Updates the environment's dimensions according to the resize of the content
+     * @author Álvaro Fernández Barrero
+     */
+    protected updateDimensions()
     {
         if (this.camera)
             this.camera.aspect = window.innerWidth / window.innerHeight;
 
-        if (this.renderer)
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer?.setSize(window.innerWidth, window.innerHeight);
     }
 
     /**

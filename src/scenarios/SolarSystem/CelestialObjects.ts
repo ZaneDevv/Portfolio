@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+import { random } from '../../math/randomness';
+
 // ----------------------------------------------------------------------------------
 // CLASSES
 // ----------------------------------------------------------------------------------
@@ -10,9 +12,14 @@ export class CelestialObject
     // STATICS
     // ----------------------------------------------------------------------------------
 
-    private static MINIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE: number = 5;
-    private static MAXIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE: number = 20;
-    private static DIFFERENCE_OF_TIME_LIMITS_FOR_NEXT_METEORITE: number = Math.abs(CelestialObject.MINIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE - CelestialObject.MAXIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE);
+    private static MINIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE: number = 2;
+    private static MAXIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE: number = 5;
+
+    private static MINIMUM_LIFETIME: number = 6;
+    private static MAXIMUM_LIFETIME: number = 15;
+
+    private static MINIMUM_SCALE: number = 0.2;
+    private static MAXIMUM_SCALE: number = 0.6;
 
     // ----------------------------------------------------------------------------------
     // ATTRIBUTES
@@ -34,6 +41,7 @@ export class CelestialObject
     {
         this.scene = scene;
 
+        this.nextBodyTime = random(CelestialObject.MINIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE, CelestialObject.MAXIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE);
         this.setUpBody();
     }
 
@@ -67,38 +75,49 @@ export class CelestialObject
         this.body.add(new THREE.Mesh(edges, materialEdges));
 
         this.scene.add(this.body);
-        this.body.position.set(0, 0, 10);
+        this.body.position.set(0, -170, 0);
     }
 
     /**
      * Launches a celestial object
      * @author Álvaro Fernández Barrero
      */
-    private launch()
+    private async launch()
     {
+        if (!this.body)
+            return;
 
-        const startingPosition = new THREE.Vector3(Math.random() * 80 - 40, 40, Math.random() * 80 - 40);
-        const direction = new THREE.Vector3(1, 0, 0);
+        const rotationAxis = new THREE.Vector3().randomDirection();
 
-        const lifetime = Math.random() * 5 + 2;
+        const direction = new THREE.Vector3().randomDirection();
+        const startingPosition = new THREE.Vector3(Math.random() * 80 - 40, 60, Math.random() * 80 - 40);
+
+        const lifetime = random(CelestialObject.MINIMUM_LIFETIME, CelestialObject.MAXIMUM_LIFETIME);
 
         let t = 0;
 
-        this.body?.scale.set(Math.random() + 0.5, Math.random() + 0.5, Math.random() + 0.5);
+        this.body.position.set(startingPosition.x, startingPosition.y, startingPosition.z);
+        this.body.scale.set(
+            random(CelestialObject.MINIMUM_SCALE, CelestialObject.MAXIMUM_SCALE),
+            random(CelestialObject.MINIMUM_SCALE, CelestialObject.MAXIMUM_SCALE),
+            random(CelestialObject.MINIMUM_SCALE, CelestialObject.MAXIMUM_SCALE)
+        );
 
         while (t < lifetime)
         {
             let rotationQuaternion = new THREE.Quaternion();
-            rotationQuaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.deltaTime * 100);
+            rotationQuaternion.setFromAxisAngle(rotationAxis, this.deltaTime);
 
-            console.log(rotationQuaternion);
+            let displacement = direction.clone();
+            displacement.multiplyScalar(this.deltaTime * 10);
 
-            let position = startingPosition.add(direction.multiplyScalar(t * 1000));
+            let newPosition = this.body?.position.clone();
+            newPosition.add(displacement)
             
-            this.body?.position.set(position.x, position.y, position.z);
-            this.body?.setRotationFromQuaternion(this.body?.quaternion.multiply(rotationQuaternion));
+            this.body.position.set(newPosition.x, newPosition.y, newPosition.z);
+            this.body.setRotationFromQuaternion(this.body?.quaternion.multiply(rotationQuaternion));
 
-            t += this.deltaTime;
+            await new Promise(resolve => setTimeout(resolve, this.deltaTime)).then(() => t += this.deltaTime);
         }
     }
 
@@ -117,7 +136,7 @@ export class CelestialObject
             this.launch();
 
             this.time = 0;
-            this.nextBodyTime = CelestialObject.MINIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE + Math.random() * CelestialObject.DIFFERENCE_OF_TIME_LIMITS_FOR_NEXT_METEORITE;
+            this.nextBodyTime = random(CelestialObject.MINIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE, CelestialObject.MAXIMUM_TIME_TO_WAIT_FOR_NEXT_METEORITE);
         }
     }
 }

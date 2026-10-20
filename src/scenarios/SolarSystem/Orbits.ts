@@ -52,7 +52,10 @@ export class Orbits
             return;
 
         this.raycaster.setFromCamera(
-            new THREE.Vector2((event.clientX - window.innerWidth) / 2 - 1, (event.clientY - window.innerHeight) / 2 - 1),
+            new THREE.Vector2(
+                (event.clientX - window.innerWidth) / 2 - 1,
+                (event.clientY - window.innerHeight) / 2 - 1
+            ),
             this.camera
         );
 
@@ -87,7 +90,7 @@ export class Orbits
     private createOrbit(index: number) 
     {
         if (!(this.scene && this.objLoader && this.scene))
-            return undefined;
+            return;
 
         let radius: number = ORBIT_RADIUS[index];
 

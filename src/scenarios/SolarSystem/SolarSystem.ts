@@ -12,12 +12,23 @@ import { Orbits } from './Orbits.ts'
 import { CentralBody } from './CentralBody.ts';
 import { CelestialObject } from './CelestialObjects.ts';
 
+import { DEG2RAD } from 'three/src/math/MathUtils.js';
+
 // ----------------------------------------------------------------------------------
 // CLASSES
 // ----------------------------------------------------------------------------------
 
 export class SolarSystem extends Scenario
 {
+    // ----------------------------------------------------------------------------------
+    // STATICS
+    // ----------------------------------------------------------------------------------
+
+    private static NEAR_PLANE: number = 0.1;
+    private static FAR_PLANE: number = 150;
+
+    private static FOV: number = 60;
+
     // ----------------------------------------------------------------------------------
     // ATTRIBUTES
     // ----------------------------------------------------------------------------------
@@ -49,17 +60,22 @@ export class SolarSystem extends Scenario
     // ----------------------------------------------------------------------------------
     // METHODS
     // ----------------------------------------------------------------------------------
-
     /**
      * Sets up the scenario's camera
      * @author Álvaro Fernández Barrero
      */
     protected setUpCamera(): void
     {
-        this.camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 1e3);
+        this.camera = new THREE.PerspectiveCamera(
+            SolarSystem.FOV,
+            window.innerWidth / window.innerHeight,
+            SolarSystem.NEAR_PLANE,
+            SolarSystem.FAR_PLANE
+        );
+
         this.camera.position.setZ(20);
         this.camera.position.setY(-40);
-        this.camera.rotateX(50 * Math.PI / 180);
+        this.camera.rotateX(50 * DEG2RAD);
     }
 
     /**
@@ -115,6 +131,7 @@ export class SolarSystem extends Scenario
         audio.volume = 0.5;
 
         this.playBackgroundMusic(audio);
+
         document.addEventListener("keydown", () => this.playBackgroundMusic(audio));
         document.addEventListener("pointerdown", () => this.playBackgroundMusic(audio));
     }
@@ -169,7 +186,7 @@ export class SolarSystem extends Scenario
             return;
         }
 
-        const ambientLight = new THREE.HemisphereLight(0x8B7AC8, 0x080616,1.5);
+        const ambientLight = new THREE.HemisphereLight(0x8B7AC8, 0x080616, 1.5);
         
         const mainLight = new THREE.DirectionalLight(0xDDD6FF, 3.0);
         mainLight.position.set(-15, -10, 25);
