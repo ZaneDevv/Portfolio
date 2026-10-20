@@ -95,7 +95,7 @@ export class Orbits
      */
     private selectBody(bodyInOrbit: BodyInOrbit) : void
     {
-        if (this.selectedBody !== bodyInOrbit)
+        if (this.selectedBody === bodyInOrbit)
             return;
 
         bodyInOrbit.select();
