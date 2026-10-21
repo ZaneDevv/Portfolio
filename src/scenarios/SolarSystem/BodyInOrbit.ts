@@ -4,7 +4,7 @@ import type { OBJLoader } from 'three/examples/jsm/Addons.js';
 import { ORBIT_COLORS, ORBIT_RADIUS } from './OrbitsInformation.ts';
 
 import { HALF_PI, TAU, DEG2RAD } from '../../math/constants.ts';
-import { lerp } from '../../math/interpolation.ts';
+import { cubicEasingOut } from '../../math/interpolation.ts';
 
 // ----------------------------------------------------------------------------------
 // CLASSES
@@ -17,6 +17,8 @@ export class BodyInOrbit
     // ----------------------------------------------------------------------------------
 
     private static HITBOX_SCALE = 7;
+
+    private static SELECTION_ANIMATION_SPEED = 0.7;
 
     // ----------------------------------------------------------------------------------
     // ATTRIBUTES
@@ -32,6 +34,9 @@ export class BodyInOrbit
     private hitboxModel?: THREE.Object3D = undefined;
 
     private isSelected: boolean = false;
+    private playUnselectedAnimation: boolean = true;
+
+    private lastUnselectedQuaternion: THREE.Quaternion = new THREE.Quaternion(0, 0, 0, 1);
 
     private deltaTime: number = 0;
 
@@ -152,36 +157,14 @@ export class BodyInOrbit
     }
 
     /**
-     * Updates the transform of the model according to the given polar coordinates
-     * @param {Number} deltaTime Time passed since last frame
-     * @author Álvaro Fernández Barrero 
+     * Computes the quaternion looking towards the camera from the model's position
+     * @returns Quaternion looking at the camera from the model's position
+     * @author Álvaro Fernández Barrero
      */
-    public updateTransform(deltaTime: number) : void
+    private computeSelectionQuaternionTowarsCamera() : THREE.Quaternion
     {
-        this.deltaTime = deltaTime;
-
-        if (!this.model || this.isSelected)
-            return;
-
-        this.phi += deltaTime * this.speed * DEG2RAD;
-        this.theta = this.thetaOffset + this.orbitAngle * Math.cos(this.phi) * DEG2RAD;
-        this.alpha += deltaTime;
-        this.alpha %= TAU;
-
-        let cosineTheta = Math.cos(this.theta);
-
-        this.model.rotation.set(HALF_PI, -cosineTheta, 0);  
-        this.model.position.set(this.radius * cosineTheta, this.radius * Math.sin(this.theta), Math.sin(this.theta * Math.E * 3) * 0.3);
-
-        this.hitboxModel?.position.set(this.model.position.x, this.model.position.y, this.model.position.z);
-    }
-
-    public async select()
-    {
-        this.isSelected = true;
-
         if (!(this.camera && this.model))
-            return;
+            return new THREE.Quaternion(0, 0, 0, 1);
 
         const forward: THREE.Vector3 = this.camera.position.clone();
         forward.sub(this.model.position.clone());
@@ -195,8 +178,7 @@ export class BodyInOrbit
         up.cross(right);
         up.normalize();
 
-        const originQuaternion = this.model.quaternion;
-        const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(
+        return new THREE.Quaternion().setFromRotationMatrix(
             new THREE.Matrix4(
                 right.x, up.x, forward.x, 0,
                 right.y, up.y, forward.y, 0,
@@ -204,25 +186,105 @@ export class BodyInOrbit
                 0, 0, 0, 1
             )
         );
+    }
+
+    /**
+     * Selects the model
+     * @author Álvaro Fernández Barrero
+     */
+    public async select()
+    {
+        this.isSelected = true;
+        this.playUnselectedAnimation = false;
+
+        if (!(this.camera && this.model))
+            return;
+        
+        this.lastUnselectedQuaternion = this.model.quaternion.clone();
+        const targetQuaternion = this.computeSelectionQuaternionTowarsCamera();
 
         let t = 0;
 
         while (t <= 1 && this.isSelected)
         {
-            let alpha = t * t * t;
-
-            const quaternionRotation = originQuaternion.clone();
-            quaternionRotation.slerp(targetQuaternion, alpha);
+            const quaternionRotation = this.lastUnselectedQuaternion.clone();
+            quaternionRotation.slerp(targetQuaternion, cubicEasingOut(t));
 
             this.model.setRotationFromQuaternion(quaternionRotation);
 
-            await new Promise(resolve => setTimeout(resolve, this.deltaTime)).then(() => t += this.deltaTime);
+            await new Promise(resolve => setTimeout(resolve, this.deltaTime)).then(() => t += this.deltaTime * BodyInOrbit.SELECTION_ANIMATION_SPEED);
         }
     }
 
-    public unselect()
+    /**
+     * Unselects the model
+     * @author Álvaro Fernández Barrero
+     */
+    public async unselect()
     {
         this.isSelected = false;
+
+        if (!(this.camera && this.model))
+            return;
+
+        const startingQuaternion = this.model.quaternion.clone();
+        const targetQuaternion = this.lastUnselectedQuaternion.clone();
+
+        let t = 0;
+
+        while (t <= 1 && !this.isSelected)
+        {
+            const quaternionRotation = startingQuaternion.clone();
+            quaternionRotation.slerp(targetQuaternion, cubicEasingOut(t));
+
+            this.model.setRotationFromQuaternion(quaternionRotation);
+
+            await new Promise(resolve => setTimeout(resolve, this.deltaTime)).then(() => t += this.deltaTime * BodyInOrbit.SELECTION_ANIMATION_SPEED);
+        }
+
+        this.playUnselectedAnimation = !this.isSelected;
+    }
+
+    /**
+     * Updates the body's orbit animation
+     * @author Álvaro Fernández Barrero
+     */
+    private updateOrbitAnimation()
+    {
+        if (!this.model)
+            return;
+
+        this.phi += this.deltaTime * this.speed * DEG2RAD;
+        this.theta = this.thetaOffset + this.orbitAngle * Math.cos(this.phi) * DEG2RAD;
+        this.alpha += this.deltaTime;
+        this.alpha %= TAU;
+
+        let cosineTheta = Math.cos(this.theta);
+
+        this.model.rotation.set(HALF_PI, -cosineTheta, 0);  
+        this.model.position.set(this.radius * cosineTheta, this.radius * Math.sin(this.theta), Math.sin(this.theta * Math.E * 3) * 0.3);
+
+        this.hitboxModel?.position.set(this.model.position.x, this.model.position.y, this.model.position.z);
+    }
+
+    /**
+     * Updates the transform of the model according to the given polar coordinates
+     * @param {Number} deltaTime Time passed since last frame
+     * @author Álvaro Fernández Barrero 
+     */
+    public updateTransform(deltaTime: number) : void
+    {
+        this.deltaTime = deltaTime;
+
+        if (!(this.model && this.playUnselectedAnimation))
+            return;
+
+        if (this.isSelected)
+        {
+
+        }
+        else
+            this.updateOrbitAnimation();
     }
 
     // ----------------------------------------------------------------------------------
