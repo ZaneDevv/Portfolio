@@ -22,10 +22,14 @@ export class Orbits
 
     private raycaster?: THREE.Raycaster;
 
+    private htmlBody?: HTMLElement;
+
     private bodies: Array<BodyInOrbit> = [];
     private bodiesInRaycastWhiteList: Array<THREE.Object3D> = [];
     private mapHotboxBody: Map<THREE.Object3D, BodyInOrbit> = new Map();
     private selectedBody?: BodyInOrbit = undefined;
+
+    private hoverAudio?: HTMLAudioElement = undefined;
 
     // ----------------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -36,6 +40,11 @@ export class Orbits
         this.scene = scene;
         this.camera = camera;
         this.objLoader = objLoader;
+
+        this.htmlBody = document.querySelectorAll("body")[0];
+
+        this.hoverAudio = document.getElementById("hover-celestial-body") as HTMLAudioElement;
+        this.hoverAudio.volume = 0.4;
 
         this.raycaster = new THREE.Raycaster();
 
@@ -86,6 +95,9 @@ export class Orbits
         if (this.selectedBody)
             this.selectedBody.unselect();
         this.selectedBody = undefined;
+
+        if (this.htmlBody)
+            this.htmlBody.style.cursor = "default";
     }
 
     /**
@@ -97,6 +109,12 @@ export class Orbits
     {
         if (this.selectedBody === bodyInOrbit)
             return;
+
+        if (this.hoverAudio)
+            this.hoverAudio.play();
+
+        if (this.htmlBody)
+            this.htmlBody.style.cursor = "pointer";
 
         bodyInOrbit.select();
 

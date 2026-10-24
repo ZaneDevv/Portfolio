@@ -194,14 +194,15 @@ export class BodyInOrbit
      */
     public async select()
     {
-        this.isSelected = true;
-        this.playUnselectedAnimation = false;
-
         if (!(this.camera && this.model))
             return;
         
-        this.lastUnselectedQuaternion = this.model.quaternion.clone();
+        if (this.playUnselectedAnimation)
+            this.lastUnselectedQuaternion = this.model.quaternion.clone();
         const targetQuaternion = this.computeSelectionQuaternionTowarsCamera();
+
+        this.isSelected = true;
+        this.playUnselectedAnimation = false;
 
         let t = 0;
 

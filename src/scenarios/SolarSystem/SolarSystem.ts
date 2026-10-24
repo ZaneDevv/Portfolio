@@ -84,9 +84,9 @@ export class SolarSystem extends Scenario
      */
     protected setUpRenderer() : void
     {
-        const canvas = document.getElementById("background");
+        const canvas = document.getElementById("solar-system-canvas");
         if (!(canvas instanceof HTMLCanvasElement))
-            throw new Error("Canvas #background not found");
+            throw new Error("Canvas #solar-system-canvas not found");
 
         this.renderer = new THREE.WebGLRenderer({
             canvas: canvas,
