@@ -6,6 +6,8 @@ import { OBJLoader } from 'three/examples/jsm/Addons.js';
 import { BodyInOrbit } from './BodyInOrbit.ts';
 import { ORBIT_COLORS, ORBIT_RADIUS } from './OrbitsInformation.ts';
 
+import { SFX } from '../../html_utils/audio/SFX.ts';
+
 // ----------------------------------------------------------------------------------
 // CLASSES
 // ----------------------------------------------------------------------------------
@@ -29,7 +31,7 @@ export class Orbits
     private mapHotboxBody: Map<THREE.Object3D, BodyInOrbit> = new Map();
     private selectedBody?: BodyInOrbit = undefined;
 
-    private hoverAudio?: HTMLAudioElement = undefined;
+    private hoverAudio?: SFX = undefined;
     private solarSystemCanvas?: HTMLElement = undefined;
 
     // ----------------------------------------------------------------------------------
@@ -43,13 +45,16 @@ export class Orbits
         this.objLoader = objLoader;
 
         this.htmlBody = document.querySelectorAll("body")[0];
-
-        this.hoverAudio = document.getElementById("hover-celestial-body") as HTMLAudioElement;
-        this.hoverAudio.volume = 0.4;
-
         this.solarSystemCanvas = document.getElementById("solar-system-canvas") as HTMLElement;
 
         this.raycaster = new THREE.Raycaster();
+
+        const htmlHoverAudio = document.getElementById("hover-celestial-body") as HTMLAudioElement;
+        if (htmlHoverAudio)
+        {
+            htmlHoverAudio.volume = 0.4;
+            this.hoverAudio = new SFX(htmlHoverAudio);
+        }
 
         for (let i: number = 0; i < ORBIT_RADIUS.length; i++)
             this.createOrbit(i);
