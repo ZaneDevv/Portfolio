@@ -30,6 +30,7 @@ export class Orbits
     private selectedBody?: BodyInOrbit = undefined;
 
     private hoverAudio?: HTMLAudioElement = undefined;
+    private solarSystemCanvas?: HTMLElement = undefined;
 
     // ----------------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -45,6 +46,8 @@ export class Orbits
 
         this.hoverAudio = document.getElementById("hover-celestial-body") as HTMLAudioElement;
         this.hoverAudio.volume = 0.4;
+
+        this.solarSystemCanvas = document.getElementById("solar-system-canvas") as HTMLElement;
 
         this.raycaster = new THREE.Raycaster();
 
@@ -135,10 +138,20 @@ export class Orbits
         if (!(this.raycaster && this.camera && this.scene))
             return;
 
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (this.solarSystemCanvas)
+        {
+            const position = this.solarSystemCanvas.getBoundingClientRect();
+            offsetX = position.left;
+            offsetY = position.top;
+        }
+
         this.raycaster.setFromCamera(
             new THREE.Vector2(
-                2 * (mouseX / window.innerWidth) - 1,
-                1 - (mouseY / window.innerHeight) * 2
+                2 * ((mouseX - offsetX) / window.innerWidth) - 1,
+                1 - ((mouseY - offsetY) / window.innerHeight) * 2
             ),
             this.camera
         );
